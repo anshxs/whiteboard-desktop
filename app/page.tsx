@@ -1,9 +1,9 @@
-import Image from "next/image";
+import FirstRunSetup from "@/components/FirstRunSetup";
 
 export default function Home() {
   return (
-    <div>
-      
+    <div className="bg-black">
+      <FirstRunSetup />
     </div>
   );
 }
