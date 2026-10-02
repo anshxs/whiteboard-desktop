@@ -49,6 +49,85 @@ ipcMain.handle("notes:choose-folder", async (event) => {
   return result.canceled ? null : (result.filePaths[0] ?? null);
 });
 
+ipcMain.handle("projects:list", async (_event, folder) => {
+  const entries = await fs.readdir(folder, { withFileTypes: true });
+  const projects = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".wboard"))
+      .map(async (entry) => {
+        const filePath = path.join(folder, entry.name);
+        try {
+          const project = JSON.parse(await fs.readFile(filePath, "utf8"));
+          return {
+            path: filePath,
+            name: typeof project.name === "string" ? project.name : entry.name.replace(/\.wboard$/, ""),
+            updatedAt: project.updatedAt ?? (await fs.stat(filePath)).mtime.toISOString(),
+            preview: {
+              document: project.document ?? { blocks: [] },
+              canvas: project.canvas ?? { elements: [], appState: {}, files: {} },
+            },
+          };
+        } catch {
+          return null;
+        }
+      }),
+  );
+  return projects.filter(Boolean).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+});
+
+ipcMain.handle("projects:create", async (_event, { folder, name }) => {
+  const projectName = typeof name === "string" ? name.trim() : "";
+  if (!projectName) throw new Error("A project name is required.");
+  const safeName = projectName.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ");
+  await fs.mkdir(folder, { recursive: true });
+  let filePath = path.join(folder, `${safeName}.wboard`);
+  for (let suffix = 2; await fs.stat(filePath).then(() => true, () => false); suffix += 1) {
+    filePath = path.join(folder, `${safeName} (${suffix}).wboard`);
+  }
+  const project = {
+    format: "wboard",
+    version: 1,
+    name: projectName,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    document: { time: Date.now(), blocks: [], version: "2.31.7" },
+    canvas: { elements: [], appState: {}, files: {} },
+  };
+  await fs.writeFile(filePath, JSON.stringify(project, null, 2), "utf8");
+  return { ...project, path: filePath };
+});
+
+ipcMain.handle("projects:open", async (_event, filePath) => {
+  if (typeof filePath !== "string" || !filePath.endsWith(".wboard")) {
+    throw new Error("Choose a .wboard project file.");
+  }
+  const project = JSON.parse(await fs.readFile(filePath, "utf8"));
+  if (project.format !== "wboard" || project.version !== 1) {
+    throw new Error("This project format is not supported.");
+  }
+  return { ...project, path: filePath };
+});
+
+ipcMain.handle("projects:save", async (_event, project) => {
+  if (typeof project?.path !== "string" || !project.path.endsWith(".wboard")) {
+    throw new Error("Invalid project file path.");
+  }
+  const saved = { ...project, updatedAt: new Date().toISOString() };
+  delete saved.path;
+  await fs.writeFile(project.path, JSON.stringify(saved, null, 2), "utf8");
+  return saved.updatedAt;
+});
+
+ipcMain.handle("projects:choose-file", async (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(window, {
+    title: "Open a Whiteboard project",
+    properties: ["openFile"],
+    filters: [{ name: "Whiteboard project", extensions: ["wboard"] }],
+  });
+  return result.canceled ? null : result.filePaths[0] ?? null;
+});
+
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1200,

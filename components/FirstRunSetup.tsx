@@ -13,15 +13,33 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 
-export default function FirstRunSetup() {
+export default function FirstRunSetup({
+  onComplete,
+  onDismiss,
+  initialSettings,
+  forceOpen = false,
+}: {
+  onComplete?: (settings: { userName: string; notesPath: string }) => void;
+  onDismiss?: () => void;
+  initialSettings?: { userName: string; notesPath: string } | null;
+  forceOpen?: boolean;
+}) {
   const [open, setOpen] = useState(false);
-  const [userName, setUserName] = useState('');
-  const [notesPath, setNotesPath] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState(initialSettings?.userName ?? '');
+  const [notesPath, setNotesPath] = useState(initialSettings?.notesPath ?? '');
+  const [loading, setLoading] = useState(!initialSettings);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (initialSettings) {
+      queueMicrotask(() => {
+        setOpen(forceOpen);
+        setLoading(false);
+      });
+      return;
+    }
+
     if (!window.desktop) {
       queueMicrotask(() => setLoading(false));
       return;
@@ -34,7 +52,7 @@ export default function FirstRunSetup() {
         setOpen(true);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [forceOpen, initialSettings]);
 
   async function chooseFolder() {
     setError('');
@@ -54,8 +72,10 @@ export default function FirstRunSetup() {
     setSaving(true);
     setError('');
     try {
-      await window.desktop.saveSettings({ userName: name, notesPath });
+      const saved = await window.desktop.saveSettings({ userName: name, notesPath });
+      onComplete?.(saved);
       setOpen(false);
+      onDismiss?.();
     } catch {
       setError('Could not save your setup. Check the folder and try again.');
     } finally {
@@ -64,7 +84,7 @@ export default function FirstRunSetup() {
   }
 
   return (
-    <AlertDialog open={!loading && open}>
+    <AlertDialog open={!loading && (forceOpen || open)}>
       <AlertDialogContent>
         <form onSubmit={saveSetup} className="grid gap-5">
           <AlertDialogHeader>

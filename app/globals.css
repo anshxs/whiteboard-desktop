@@ -141,3 +141,27 @@
     @apply font-sans;
   }
 }
+
+.editorjs-surface .ce-block__content,
+.editorjs-surface .ce-toolbar__content {
+  max-width: 720px;
+}
+
+.editorjs-surface .codex-editor__redactor {
+  padding-bottom: 160px !important;
+}
+
+.editorjs-surface .ce-paragraph,
+.editorjs-surface .ce-header {
+  color: #1e293b;
+  line-height: 1.75;
+}
+
+.editorjs-surface .ce-paragraph[data-placeholder]:empty::before {
+  color: #94a3b8;
+}
+
+.editor-scroll .ce-toolbar__plus,
+.editor-scroll .ce-toolbar__settings-btn {
+  color: #64748b;
+}
