@@ -83,8 +83,12 @@ The scripts first create the Next.js static export, then run electron-builder.
 Installers and archives are written to `release/`. `public/build.png` is used
 for the in-app logo, Electron window icon, and packaged app icon. Building for
 macOS, Windows, and Linux is most reliable on a native host for that platform;
-code signing and notarization require platform credentials and are not
-configured in this repository.
+code signing and notarization require Apple Developer credentials and are not
+configured in this repository. The macOS package sets `gatekeeperAssess: false`
+to skip electron-builder's build-time signature assessment; this does not
+disable macOS Gatekeeper for people opening a downloaded app. A Developer ID
+signature and Apple notarization are required to avoid the first-open warning
+for distributed macOS builds.
 
 ## Project structure
 

@@ -49,7 +49,11 @@
       "buildResources": "public"
     },
     "files": ["electron.js", "preload.js", "package.json", "out/**/*"],
-    "mac": { "icon": "public/build.png", "target": ["dmg", "zip"] },
+    "mac": {
+      "icon": "public/build.png",
+      "target": ["dmg", "zip"],
+      "gatekeeperAssess": false
+    },
     "win": { "icon": "public/build.png", "target": ["nsis"] },
     "linux": { "icon": "public/build.png", "target": ["AppImage"] }
   },
