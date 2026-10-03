@@ -211,7 +211,7 @@ export default function WhiteboardApp() {
           <header className="flex h-[72px] shrink-0 items-center justify-between bg-white px-8">
             <div className="flex items-center gap-3">
               <img
-                src="/logo.png"
+                src="/build.png"
                 alt="Whiteboard logo"
                 width={48}
                 height={48}

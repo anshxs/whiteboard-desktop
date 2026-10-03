@@ -1,36 +1,141 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Whiteboard
 
-## Getting Started
+Whiteboard is a desktop workspace for keeping a rich text document and an
+Excalidraw canvas together in one project. The desktop shell is Electron and
+the UI is a Next.js App Router app.
 
-First, run the development server:
+Projects are stored as `.wboard` JSON files in a folder selected by the user.
+Each file includes the project name, Editor.js document output, Excalidraw
+elements, app state, and embedded drawing files.
+
+## Features
+
+- Editor.js document editing with headings, lists, checklists, quotes, tables,
+  code, warnings, and inline formatting tools.
+- Excalidraw canvas editing with scene and image export.
+- Document, Canvas, and combined workspace views.
+- Project creation, search, import, preview, and confirmed deletion.
+- Manual and automatic saving to `.wboard` files.
+- First-run profile setup and a configurable notes folder.
+- Electron IPC bridges for settings, project files, and native file dialogs.
+
+## Requirements
+
+- Node.js 20 or newer.
+- npm.
+- A supported desktop build host for the platform installer being produced.
+- Network access for the first dependency install and Next.js Google Font fetch
+  during the production build.
+
+## Install
+
+```bash
+npm install
+```
+
+## Development
+
+Run the website in a browser:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run Next.js and the Electron desktop shell together:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev:app
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app loads `http://localhost:3000` in development. Electron uses a preload
+bridge with context isolation enabled; renderer code should access desktop
+capabilities through `window.desktop` instead of importing Electron APIs.
 
-## Learn More
+## Build the website
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Next.js is configured for static export. `npm run build` writes the standalone
+site to `out/`; `npm start` serves that directory locally for a production
+preview. The static export is also the renderer content included in desktop
+packages.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Build desktop installers
 
-## Deploy on Vercel
+Build an installer for the current host platform:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run build:app
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Platform-specific commands are available too:
+
+```bash
+npm run build:mac
+npm run build:win
+npm run build:linux
+```
+
+The scripts first create the Next.js static export, then run electron-builder.
+Installers and archives are written to `release/`. `public/build.png` is used
+for the in-app logo, Electron window icon, and packaged app icon. Building for
+macOS, Windows, and Linux is most reliable on a native host for that platform;
+code signing and notarization require platform credentials and are not
+configured in this repository.
+
+## Project structure
+
+```text
+app/                 Next.js route, layout, and global styles
+components/           Home screen, workspace panes, dialogs, and UI components
+electron.js           Electron main process and filesystem-backed IPC handlers
+preload.js            Context-isolated renderer API
+lib/                  Shared utilities
+public/               Static assets, including build.png
+scripts/              Static export preview server
+types/                Renderer IPC and editor tool declarations
+```
+
+### Project file format
+
+`.wboard` files are UTF-8 JSON with `format: "wboard"` and a format version.
+The `document` property stores Editor.js output. The `canvas` property stores
+Excalidraw elements, app state, and file data. The Electron main process owns
+file reads and writes; renderer components use the typed preload API.
+
+### Useful commands
+
+```bash
+npm run lint             # ESLint
+npx tsc --noEmit         # TypeScript check
+npm run build            # Next.js static production build
+npm run build:app        # Static build plus desktop package
+```
+
+## Contributing
+
+1. Create a branch from the current main branch.
+2. Install dependencies with `npm install`.
+3. Run `npm run dev:app` and reproduce or implement the change.
+4. Keep Electron-only operations in `electron.js`; expose narrow capabilities
+   through `preload.js` and update `types/electron.d.ts` when that API changes.
+5. Keep project file changes backward compatible where practical. If the
+   `.wboard` structure changes, update its version and document migration
+   behavior here.
+6. Run `npm run lint` and `npx tsc --noEmit` before opening a pull request.
+7. Describe user-visible changes and include screenshots or reproduction steps
+   for UI changes.
+
+Do not commit generated output such as `.next/`, `out/`, or `release/`, local
+settings, or secrets. Keep changes focused and use the existing TypeScript,
+React, and Tailwind conventions in the surrounding files.
+
+## Security notes
+
+Electron runs with `contextIsolation` enabled and `nodeIntegration` disabled.
+Add new privileged operations as validated IPC handlers in `electron.js` and
+expose only the needed method in `preload.js`. Do not expose `ipcRenderer`, Node
+APIs, or arbitrary filesystem access directly to the UI.

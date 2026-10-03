@@ -169,6 +169,7 @@ const createWindow = () => {
     width: 1200,
     height: 800,
     title: "Whiteboard",
+    icon: path.join(__dirname, app.isPackaged ? "out" : "public", "build.png"),
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     autoHideMenuBar: true,
     webPreferences: {
@@ -187,7 +188,11 @@ const createWindow = () => {
     win.webContents.send("app:quit-request");
   });
 
-  win.loadURL("http://localhost:3000");
+  if (app.isPackaged) {
+    win.loadFile(path.join(__dirname, "out", "index.html"));
+  } else {
+    win.loadURL("http://localhost:3000");
+  }
 };
 
 app.whenReady().then(createWindow);
