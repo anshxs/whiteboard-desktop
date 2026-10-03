@@ -167,7 +167,12 @@ export default function ProjectWorkspace({
   const showCanvas = view !== "document";
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-secondary">
+    <div className="relative flex h-full min-h-0 flex-col bg-secondary">
+      {/* <div
+        aria-hidden="true"
+        className="electron-drag-region absolute inset-x-0 top-0 z-10 h-9"
+        style={{ backgroundColor: "var(--secondary)" }}
+      /> */}
       <SaveQuitDialog
         open={exitDialogOpen}
         saving={saving}
@@ -240,7 +245,7 @@ export default function ProjectWorkspace({
           className={`${showDocument ? "flex" : "hidden"} min-h-0 col-span-1 flex-col bg-secondary`}
           aria-label="Document editor"
         >
-          <div className="editor-scroll min-h-0 flex-1 bg-white overflow-visible mx-1 my-4 rounded-2xl px-5 py-5 sm:px-10">
+          <div className="editor-scroll min-h-0 flex-1 bg-white overflow-scroll scrollbar-none mx-1 my-4 rounded-2xl px-5 py-5 sm:px-10">
             <DocumentPane
               key={initialProject.path}
               data={initialProject.document}

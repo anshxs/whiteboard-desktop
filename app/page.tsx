@@ -90,6 +90,9 @@ export default function WhiteboardApp() {
   const filteredProjects = projects.filter((item) =>
     item.name.toLowerCase().includes(search.trim().toLowerCase()),
   );
+  const duplicateProjectName = projectName.trim().length > 0 && projects.some(
+    (item) => item.name.trim().toLocaleLowerCase() === projectName.trim().toLocaleLowerCase(),
+  );
 
   async function openProject(filePath: string) {
     setError("");
@@ -114,7 +117,7 @@ export default function WhiteboardApp() {
 
   async function createProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!settings?.notesPath || !projectName.trim() || !window.desktop) return;
+    if (!settings?.notesPath || !projectName.trim() || duplicateProjectName || !window.desktop) return;
     setError("");
     try {
       const created = await window.desktop.createProject({
@@ -160,7 +163,8 @@ export default function WhiteboardApp() {
     );
 
   return (
-    <main className="flex h-screen min-h-[560px] flex-col overflow-hidden bg-white text-slate-950">
+    <main className="relative flex h-screen min-h-[560px] flex-col overflow-hidden bg-white pt-9 text-slate-950">
+      <div aria-hidden="true" className="electron-drag-region absolute inset-x-0 top-0 z-10 h-9" />
       <AlertDialog open={quitDialogOpen} onOpenChange={setQuitDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -275,7 +279,7 @@ export default function WhiteboardApp() {
               </p>
             )}
             {filteredProjects.length ? (
-              <div className="overflow-hidden rounded-2xl bg-secondary">
+              <div className="overflow-scroll scrollbar-none rounded-2xl bg-secondary">
                 {filteredProjects.map((item) => (
                   <div
                     key={item.path}
@@ -364,8 +368,14 @@ export default function WhiteboardApp() {
                     value={projectName}
                     onChange={(event) => setProjectName(event.target.value)}
                     placeholder="Untitled project"
+                    aria-invalid={duplicateProjectName}
                     className="h-10 rounded-xl bg-secondary px-3 outline-none"
                   />
+                  {duplicateProjectName && (
+                    <span role="alert" className="text-xs text-destructive">
+                      A project with this name already exists.
+                    </span>
+                  )}
                 </label>
                 <div className="mt-6 flex justify-end gap-2">
                   <Button
@@ -378,6 +388,7 @@ export default function WhiteboardApp() {
                   </Button>
                   <Button
                     type="submit"
+                    disabled={!projectName.trim() || duplicateProjectName}
                     className="rounded-xl bg-black text-white hover:bg-gray-800"
                   >
                     Create project

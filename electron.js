@@ -1,11 +1,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 let allowWindowClose = false;
 let mainWindow;
+
+app.setName("Whiteboard");
+Menu.setApplicationMenu(null);
 
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
 
@@ -81,9 +84,23 @@ ipcMain.handle("projects:list", async (_event, folder) => {
 ipcMain.handle("projects:create", async (_event, { folder, name }) => {
   const projectName = typeof name === "string" ? name.trim() : "";
   if (!projectName) throw new Error("A project name is required.");
+  const existingProjects = await fs.readdir(folder, { withFileTypes: true });
+  for (const entry of existingProjects) {
+    if (!entry.isFile() || !entry.name.endsWith(".wboard")) continue;
+    try {
+      const existing = JSON.parse(await fs.readFile(path.join(folder, entry.name), "utf8"));
+      if (typeof existing.name === "string" && existing.name.trim().toLocaleLowerCase() === projectName.toLocaleLowerCase()) {
+        throw new Error("A project with this name already exists.");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message === "A project with this name already exists.") throw error;
+      // Ignore malformed project files while checking names.
+    }
+  }
   const safeName = projectName.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ");
   await fs.mkdir(folder, { recursive: true });
   let filePath = path.join(folder, `${safeName}.wboard`);
+  // Avoid overwriting unrelated files in the selected notes directory.
   for (let suffix = 2; await fs.stat(filePath).then(() => true, () => false); suffix += 1) {
     filePath = path.join(folder, `${safeName} (${suffix}).wboard`);
   }
@@ -151,12 +168,17 @@ const createWindow = () => {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    title: "Whiteboard",
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
+
+  win.setMenuBarVisibility(false);
 
   mainWindow = win;
   win.on("close", (event) => {
