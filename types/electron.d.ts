@@ -19,6 +19,9 @@ declare global {
       openProject: (filePath: string) => Promise<WBoardProject>;
       saveProject: (project: WBoardProject) => Promise<string>;
       chooseProjectFile: () => Promise<string | null>;
+      deleteProject: (options: { filePath: string; projectName: string }) => Promise<boolean>;
+      onQuitRequest: (callback: () => void) => () => void;
+      confirmQuit: () => void;
     };
   }
 

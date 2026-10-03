@@ -11,4 +11,11 @@ contextBridge.exposeInMainWorld('desktop', {
   openProject: (filePath) => ipcRenderer.invoke('projects:open', filePath),
   saveProject: (project) => ipcRenderer.invoke('projects:save', project),
   chooseProjectFile: () => ipcRenderer.invoke('projects:choose-file'),
+  deleteProject: (options) => ipcRenderer.invoke('projects:delete', options),
+  onQuitRequest: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('app:quit-request', listener);
+    return () => ipcRenderer.removeListener('app:quit-request', listener);
+  },
+  confirmQuit: () => ipcRenderer.send('app:quit-confirm'),
 });

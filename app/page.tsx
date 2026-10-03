@@ -9,10 +9,19 @@ import {
   Plus,
   Search,
   Settings2,
+  Trash2,
 } from "lucide-react";
 import FirstRunSetup from "@/components/FirstRunSetup";
-import ProjectCardPreview from "@/components/ProjectCardPreview";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ProjectWorkspace = dynamic(
   () => import("@/components/ProjectWorkspace"),
@@ -47,6 +56,12 @@ export default function WhiteboardApp() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ProjectListItem | null>(
+    null,
+  );
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [quitDialogOpen, setQuitDialogOpen] = useState(false);
 
   const refreshProjects = useCallback(async (folder: string) => {
     if (window.desktop) setProjects(await window.desktop.listProjects(folder));
@@ -66,6 +81,11 @@ export default function WhiteboardApp() {
       .catch(() => setError("Could not load app settings."))
       .finally(() => setLoading(false));
   }, [refreshProjects]);
+
+  useEffect(() => {
+    if (!window.desktop || project) return;
+    return window.desktop.onQuitRequest(() => setQuitDialogOpen(true));
+  }, [project]);
 
   const filteredProjects = projects.filter((item) =>
     item.name.toLowerCase().includes(search.trim().toLowerCase()),
@@ -112,6 +132,26 @@ export default function WhiteboardApp() {
     }
   }
 
+  async function deleteProject() {
+    if (!deleteTarget || deleteText !== deleteTarget.name || !window.desktop)
+      return;
+    setDeleting(true);
+    setError("");
+    try {
+      await window.desktop.deleteProject({
+        filePath: deleteTarget.path,
+        projectName: deleteTarget.name,
+      });
+      setDeleteTarget(null);
+      setDeleteText("");
+      if (settings?.notesPath) await refreshProjects(settings.notesPath);
+    } catch {
+      setError("Could not delete this project.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading)
     return (
       <main className="grid min-h-screen place-items-center bg-[#f8f9fc] text-sm text-muted-foreground">
@@ -121,6 +161,24 @@ export default function WhiteboardApp() {
 
   return (
     <main className="flex h-screen min-h-[560px] flex-col overflow-hidden bg-white text-slate-950">
+      <AlertDialog open={quitDialogOpen} onOpenChange={setQuitDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Quit Whiteboard?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to quit the app?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setQuitDialogOpen(false)}>
+              Cancel
+            </Button>
+            <AlertDialogAction onClick={() => window.desktop?.confirmQuit()}>
+              Quit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <FirstRunSetup
         key={settingsOpen ? "settings-open" : "settings-closed"}
         initialSettings={settings}
@@ -217,29 +275,46 @@ export default function WhiteboardApp() {
               </p>
             )}
             {filteredProjects.length ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="overflow-hidden rounded-2xl bg-secondary">
                 {filteredProjects.map((item) => (
-                  <button
+                  <div
                     key={item.path}
-                    onClick={() => openProject(item.path)}
-                    className="group overflow-hidden rounded-2xl bg-secondary text-left transition"
+                    className="group flex min-h-16 items-center gap-4 px-4 py-3 last:border-b-0 hover:bg-black/5"
                   >
-                    <div className="relative h-44 overflow-hidden bg-slate-50">
-                      <ProjectCardPreview
-                        projectName={item.name}
-                        preview={item.preview}
-                      />
-                    </div>
-                    <div className="p-4">
-                      <h3 className="truncate font-semibold group-hover:text-black">
-                        {item.name}
-                      </h3>
-                      <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openProject(item.path)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openProject(item.path);
+                        }
+                      }}
+                      className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400"
+                    >
+                      <h3 className="truncate font-medium text-slate-900">{item.name}</h3>
+                      <p className="flex shrink-0 items-center gap-1.5 text-xs text-slate-500">
                         <Clock3 className="size-3.5" />
                         Updated {new Date(item.updatedAt).toLocaleDateString()}
                       </p>
                     </div>
-                  </button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8 shrink-0 rounded-lg bg-white text-slate-500 hover:text-red-600"
+                      aria-label={`Delete ${item.name}`}
+                      title="Delete project"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDeleteTarget(item);
+                        setDeleteText("");
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -311,6 +386,55 @@ export default function WhiteboardApp() {
               </form>
             </div>
           )}
+          <AlertDialog
+            open={!!deleteTarget}
+            onOpenChange={(open) => {
+              if (!open && !deleting) {
+                setDeleteTarget(null);
+                setDeleteText("");
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete project?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes the project file. Type{" "}
+                  <strong>{deleteTarget?.name}</strong> to confirm.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <label className="grid gap-2 text-sm font-medium">
+                Project name
+                <input
+                  autoFocus
+                  value={deleteText}
+                  onChange={(event) => setDeleteText(event.target.value)}
+                  className="h-10 rounded-xl bg-secondary px-3 outline-none"
+                />
+              </label>
+              <AlertDialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setDeleteTarget(null);
+                    setDeleteText("");
+                  }}
+                  disabled={deleting}
+                >
+                  Cancel
+                </Button>
+                <AlertDialogAction
+                  type="button"
+                  variant="destructive"
+                  disabled={deleting || deleteText !== deleteTarget?.name}
+                  onClick={() => void deleteProject()}
+                >
+                  {deleting ? "Deleting…" : "Delete project"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </main>

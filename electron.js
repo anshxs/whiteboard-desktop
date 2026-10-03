@@ -4,6 +4,9 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 /* eslint-enable @typescript-eslint/no-require-imports */
 
+let allowWindowClose = false;
+let mainWindow;
+
 const settingsPath = () => path.join(app.getPath("userData"), "settings.json");
 
 async function readSettings() {
@@ -128,6 +131,22 @@ ipcMain.handle("projects:choose-file", async (event) => {
   return result.canceled ? null : result.filePaths[0] ?? null;
 });
 
+ipcMain.handle("projects:delete", async (_event, { filePath, projectName }) => {
+  if (typeof filePath !== "string" || !filePath.endsWith(".wboard")) {
+    throw new Error("Invalid project file path.");
+  }
+  const project = JSON.parse(await fs.readFile(filePath, "utf8"));
+  if (project.name !== projectName) throw new Error("Project name did not match.");
+  await fs.unlink(filePath);
+  return true;
+});
+
+ipcMain.on("app:quit-confirm", () => {
+  allowWindowClose = true;
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+  else app.quit();
+});
+
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1200,
@@ -137,6 +156,13 @@ const createWindow = () => {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  mainWindow = win;
+  win.on("close", (event) => {
+    if (allowWindowClose) return;
+    event.preventDefault();
+    win.webContents.send("app:quit-request");
   });
 
   win.loadURL("http://localhost:3000");

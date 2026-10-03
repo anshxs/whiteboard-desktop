@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import DocumentPane from "@/components/DocumentPane";
 import CanvasPane, { type ExcalidrawScene } from "@/components/CanvasPane";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
+import SaveQuitDialog from "@/components/SaveQuitDialog";
 
 type ViewMode = "both" | "document" | "canvas";
 
@@ -39,6 +40,8 @@ export default function ProjectWorkspace({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
+  const [exitDialogOpen, setExitDialogOpen] = useState(false);
+  const [exitKind, setExitKind] = useState<"back" | "quit">("back");
   const [initialCanvas] = useState<ExcalidrawScene>(
     () => initialProject.canvas as unknown as ExcalidrawScene,
   );
@@ -71,7 +74,8 @@ export default function ProjectWorkspace({
     refreshDirty();
   }, [refreshDirty]);
   const save = useCallback(async () => {
-    if (!window.desktop || !dirty || savingRef.current) return;
+    if (!dirty) return true;
+    if (!window.desktop || savingRef.current) return false;
     savingRef.current = true;
     setSaving(true);
     setError("");
@@ -89,15 +93,41 @@ export default function ProjectWorkspace({
       latestProject.current = next;
       savedContent.current = signatureBeingSaved;
       refreshDirty();
+      return contentSignature(editorData.current, canvasData.current) === savedContent.current;
     } catch {
       setError(
         "Could not save your project. Check that the file is still accessible.",
       );
+      return false;
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
   }, [dirty, refreshDirty]);
+
+  const continueExit = useCallback(async () => {
+    if (!(await save())) return;
+    setExitDialogOpen(false);
+    if (exitKind === "quit") window.desktop?.confirmQuit();
+    else onBack();
+  }, [exitKind, onBack, save]);
+
+  const requestBack = useCallback(async () => {
+    if (savingRef.current) return;
+    if (dirty && !(await save())) return;
+    onBack();
+  }, [dirty, onBack, save]);
+
+  useEffect(() => {
+    if (!window.desktop) return;
+    return window.desktop.onQuitRequest(() => {
+      if (!dirty && !saving) window.desktop?.confirmQuit();
+      else {
+        setExitKind("quit");
+        setExitDialogOpen(true);
+      }
+    });
+  }, [dirty, saving]);
 
   useEffect(() => {
     if (!ready) return;
@@ -138,13 +168,21 @@ export default function ProjectWorkspace({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-secondary">
+      <SaveQuitDialog
+        open={exitDialogOpen}
+        saving={saving}
+        intent={exitKind}
+        onCancel={() => setExitDialogOpen(false)}
+        onSaveAndContinue={() => void continueExit()}
+        onDiscardAndContinue={() => window.desktop?.confirmQuit()}
+      />
       <header className="flex h-[62px] shrink-0 items-center justify-between bg-secondary px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Button
             variant="default"
             size="icon"
             className="size-9 rounded-xl bg-white hover:bg-white text-black"
-            onClick={onBack}
+            onClick={requestBack}
             aria-label="Back to projects"
           >
             <ArrowLeft />
@@ -188,7 +226,7 @@ export default function ProjectWorkspace({
       )}
       <div className="flex h-[54px] shrink-0 items-center justify-start bg-secondary px-4 sm:px-6">
         <Tabs defaultValue="Both" className="">
-          <TabsList className="h-9 bg-[#dedede]">
+          <TabsList className="h-9 bg-[#e9e9e9]">
             <TabsTrigger onClick={() => setView("both")} value="Both">Both</TabsTrigger>
             <TabsTrigger onClick={() => setView("document")} value="Document">Document</TabsTrigger>
             <TabsTrigger onClick={() => setView("canvas")} value="Canvas">Canvas</TabsTrigger>
