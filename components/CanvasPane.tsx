@@ -56,7 +56,7 @@ export default function CanvasPane({
         <WelcomeScreen.Hints.HelpHint />
         <WelcomeScreen.Center>
           <WelcomeScreen.Center.Logo>
-            <img src="/build.png" alt="Whiteboard" className="w-16 h-16 opacity-40" />
+            <img src="./build.png" alt="Whiteboard" className="w-16 h-16 opacity-40" />
             </WelcomeScreen.Center.Logo>
         </WelcomeScreen.Center>
       </WelcomeScreen>

@@ -83,7 +83,9 @@ export default function WhiteboardApp() {
   }, [refreshProjects]);
 
   useEffect(() => {
-    if (!window.desktop || project) return;
+    if (!window.desktop) return;
+    window.desktop.signalRendererReady();
+    if (project) return;
     return window.desktop.onQuitRequest(() => setQuitDialogOpen(true));
   }, [project]);
 
@@ -211,7 +213,7 @@ export default function WhiteboardApp() {
           <header className="flex h-[72px] shrink-0 items-center justify-between bg-white px-8">
             <div className="flex items-center gap-3">
               <img
-                src="/build.png"
+                src="./build.png"
                 alt="Whiteboard logo"
                 width={48}
                 height={48}

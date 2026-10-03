@@ -48,7 +48,7 @@
       "output": "release",
       "buildResources": "public"
     },
-    "files": ["electron.js", "preload.js", "package.json", "out/**/*"],
+    "files": ["electron.js", "preload.js", "package.json", "scripts/static-server.cjs", "out/**/*"],
     "mac": {
       "icon": "public/build.png",
       "target": ["dmg", "zip"],

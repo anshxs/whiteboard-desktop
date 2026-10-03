@@ -2,10 +2,13 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { startStaticServer } = require("./scripts/static-server.cjs");
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 let allowWindowClose = false;
+let rendererReady = false;
 let mainWindow;
+let packagedSiteServer;
 
 app.setName("Whiteboard");
 Menu.setApplicationMenu(null);
@@ -160,11 +163,14 @@ ipcMain.handle("projects:delete", async (_event, { filePath, projectName }) => {
 
 ipcMain.on("app:quit-confirm", () => {
   allowWindowClose = true;
-  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
-  else app.quit();
+  app.quit();
 });
 
-const createWindow = () => {
+ipcMain.on("app:renderer-ready", (event) => {
+  if (mainWindow && event.sender === mainWindow.webContents) rendererReady = true;
+});
+
+const createWindow = (rendererUrl) => {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -182,20 +188,41 @@ const createWindow = () => {
   win.setMenuBarVisibility(false);
 
   mainWindow = win;
+  const rendererOrigin = new URL(rendererUrl).origin;
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  win.webContents.on("will-navigate", (event, navigationUrl) => {
+    if (new URL(navigationUrl).origin !== rendererOrigin) event.preventDefault();
+  });
   win.on("close", (event) => {
     if (allowWindowClose) return;
+    if (!rendererReady || win.webContents.isCrashed()) {
+      allowWindowClose = true;
+      app.quit();
+      return;
+    }
     event.preventDefault();
     win.webContents.send("app:quit-request");
   });
 
-  if (app.isPackaged) {
-    win.loadFile(path.join(__dirname, "out", "index.html"));
-  } else {
-    win.loadURL("http://localhost:3000");
-  }
+  void win.loadURL(rendererUrl);
 };
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  if (app.isPackaged) {
+    const hostedSite = await startStaticServer({
+      root: path.join(__dirname, "out"),
+    });
+    packagedSiteServer = hostedSite.server;
+    createWindow(hostedSite.url);
+    return;
+  }
+  createWindow("http://localhost:3000");
+}).catch((error) => {
+  console.error("Could not start Whiteboard:", error);
+  app.quit();
+});
+
+app.on("will-quit", () => packagedSiteServer?.close());
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

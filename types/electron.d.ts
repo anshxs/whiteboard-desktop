@@ -20,6 +20,7 @@ declare global {
       saveProject: (project: WBoardProject) => Promise<string>;
       chooseProjectFile: () => Promise<string | null>;
       deleteProject: (options: { filePath: string; projectName: string }) => Promise<boolean>;
+      signalRendererReady: () => void;
       onQuitRequest: (callback: () => void) => () => void;
       confirmQuit: () => void;
     };
