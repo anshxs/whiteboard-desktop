@@ -4,6 +4,8 @@ Whiteboard is a desktop workspace for keeping a rich text document and an
 Excalidraw canvas together in one project. The desktop shell is Electron and
 the UI is a Next.js App Router app.
 
+<img width="1204" height="799" alt="Screenshot 2026-10-03 at 11 52 43" src="https://github.com/user-attachments/assets/07819c23-6d37-47c7-b3d1-3fcb5b37a08c" />
+
 Projects are stored as `.wboard` JSON files in a folder selected by the user.
 Each file includes the project name, Editor.js document output, Excalidraw
 elements, app state, and embedded drawing files.
